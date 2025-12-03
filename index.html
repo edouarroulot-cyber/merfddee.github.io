@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeu du Sapin - Édition Raid Boss</title>
+    <!-- Chargement de Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Police Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -14,7 +16,6 @@
         body {
             font-family: 'Inter', sans-serif;
             overflow: hidden; /* Empêche le scroll global */
-            /* CHANGEMENT DU FOND ICI */
             background: url('https://lh5.googleusercontent.com/proxy/ukBKb_S9kP-B5LrRFUXsnp8DpAHWwTwlZuHeCZ4e8HS7IwgfyV7fBwlk1K7pmUCOfDVM71cSCJgQEhIaMWyOvxI-ouf8XCXTwlnREk0') no-repeat center center fixed;
             background-size: cover;
             color: #f3f4f6;
@@ -198,7 +199,7 @@
             padding: 10px; border-radius: 12px;
             display: none; flex-direction: column; gap: 8px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 100;
-            min-width: 200px;
+            min-width: 220px;
         }
         .menu-overlay.active { display: flex; }
         .menu-item {
@@ -220,6 +221,8 @@
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- ================== PANNEAUX DÉPLAÇABLES ================== -->
 
     <div id="rewardsContainer" class="draggable-panel" style="top: 40px; left: 40px;">
         <div class="panel-header">
@@ -266,20 +269,25 @@
         </div>
     </div>
 
+    <!-- MENU CONFIGURATION AVEC NOUVEAU BOUTON RESET -->
     <div class="menu-overlay" id="menuOverlay">
         <div class="menu-item" onclick="togglePanel('rewardsContainer')">🎁 Tableau des gains</div>
         <div class="menu-item" onclick="togglePanel('lastAttackerPanel')">⚔️ Dernier Attaquant</div>
         <div class="menu-item" onclick="togglePanel('lastRewardPanel')">🏆 Dernier Gain</div>
         <div class="border-t border-gray-600 my-1"></div>
-        <div class="menu-item text-red-400 hover:text-red-300" onclick="resetRewardsData()">🗑️ Vider les gains</div>
+        <div class="menu-item text-red-400 hover:text-red-300" onclick="resetRewardsData()">🗑️ Vider seulement les gains</div>
+        <div class="menu-item text-red-500 font-bold hover:text-red-400 border border-red-500/30 rounded" onclick="fullReset()">🔴 Réinitialiser le Jeu</div>
     </div>
+    
     <button class="menu-btn" onclick="document.getElementById('menuOverlay').classList.toggle('active')">
-        📋 Configurer l'Affichage
+        📋 Configurer / Reset
     </button>
 
     <div id="toast" class="toast">Notification</div>
 
 
+    <!-- ================== JEU PRINCIPAL ================== -->
+    
     <div class="relative z-0 bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-2xl p-6 shadow-2xl max-w-xl w-full text-center">
         
         <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200 mb-1 drop-shadow-sm uppercase tracking-wider">Frappe le Sapin</h1>
@@ -341,16 +349,16 @@
         </div>
     </div>
 
+    <!-- ================== JAVASCRIPT LOGIC ================== -->
     <script>
         // --- SONS ---
-        // On charge les sons. On permet la superposition (clone) pour le hit.
         const AUDIO_HIT_SRC = 'https://files.catbox.moe/fp8aq6.mp3';
         const AUDIO_WIN_SRC = 'https://files.catbox.moe/4fscth.wav';
 
         function playHitSound() {
             try {
                 const s = new Audio(AUDIO_HIT_SRC);
-                s.volume = 0.4; // Volume raisonnable
+                s.volume = 0.4;
                 s.play().catch(e => console.log("Auto-play bloqué (hit)", e));
             } catch(e) { console.error(e); }
         }
@@ -526,7 +534,6 @@
                 target = activeBaubles[Math.floor(Math.random() * activeBaubles.length)];
             }
             
-            // SON DE FRAPPE
             playHitSound();
 
             target.hp -= hits;
@@ -541,7 +548,6 @@
                 target.element.classList.add('broken');
                 target.hpElement.style.opacity = '0';
                 
-                // SON DE VICTOIRE (GAIN)
                 playWinSound();
 
                 const finalReward = target.reward;
@@ -647,6 +653,34 @@
                 rewardsQueue = [];
                 saveData();
                 renderRewards();
+            }
+        }
+
+        // --- NOUVELLE FONCTION RESET COMPLET ---
+        function fullReset() {
+            if(confirm("⚠️ ATTENTION : Cela va effacer TOUS les gains, l'historique et régénérer le sapin. Continuer ?")) {
+                // Clear Rewards
+                rewardsQueue = [];
+                saveData();
+                renderRewards();
+                
+                // Clear Logs
+                document.getElementById('gameLog').innerHTML = '<div class="text-yellow-400">✨ Système réinitialisé. Prêt !</div>';
+                
+                // Clear Panels
+                document.getElementById('lastAttackerName').innerText = "-";
+                document.getElementById('lastAttackerTime').innerText = "En attente...";
+                document.getElementById('lastWinnerName').innerText = "-";
+                document.getElementById('lastWinnerAmount').innerText = "0";
+                document.getElementById('lastWinnerTime').innerText = "En attente...";
+                
+                // Reset Tree
+                initTree();
+                
+                showToast("♻️ Jeu entièrement réinitialisé !");
+                
+                // Fermer le menu
+                document.getElementById('menuOverlay').classList.remove('active');
             }
         }
 
