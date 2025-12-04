@@ -305,6 +305,9 @@
             <div id="b6-container" class="bauble-container" style="top: 235px; left: 320px;"></div>
             <div id="b7-container" class="bauble-container" style="top: 325px; left: 140px;"></div>
             <div id="b8-container" class="bauble-container" style="top: 315px; left: 280px;"></div>
+            
+            <!-- CADEAU AU PIED DU SAPIN -->
+            <div id="gift-container" class="bauble-container" style="top: 450px; left: 175px; z-index: 20;"></div>
         </div>
 
         <div class="mt-8">
@@ -417,6 +420,15 @@
                 img: 'https://i.ibb.co/ym56nyNx/023856-or-Photoroom.png',
                 size: 48,
                 fixedReward: 2500 
+            },
+            { 
+                id: 'gift', 
+                label: 'CADEAU LÉGENDAIRE',
+                weight: 0, /* Ne spawn pas aléatoirement */
+                hpRange: [100000, 100000], 
+                img: 'https://i.ibb.co/4ZNs3hkw/bon-cadeau-de-20-euros-Photoroom.png',
+                size: 100,
+                fixedReward: 10000 
             }
         ];
 
@@ -466,7 +478,16 @@
             containers.forEach((container, index) => {
                 container.innerHTML = '';
                 
-                const tier = getRandomTier();
+                let tier;
+                // Logique spéciale pour le cadeau
+                if (container.id === 'gift-container') {
+                    tier = TIERS.find(t => t.id === 'gift');
+                } else {
+                    tier = getRandomTier();
+                    // Sécurité : éviter que le random ne prenne le cadeau (poids 0 devrait suffire, mais au cas où)
+                    if(tier.id === 'gift') tier = TIERS[2];
+                }
+                
                 const maxHp = getRandomInt(tier.hpRange[0], tier.hpRange[1]);
                 const reward = tier.fixedReward ? tier.fixedReward : Math.ceil(maxHp * 0.25);
                 
@@ -552,7 +573,9 @@
 
                 const finalReward = target.reward;
                 
-                if (target.tier.id === 'boss') {
+                if (target.tier.id === 'gift') {
+                    log(`🎁 INCROYABLE ! ${username} a ouvert le CADEAU LÉGENDAIRE ! (+${finalReward})`);
+                } else if (target.tier.id === 'boss') {
                     log(`👑 ${username} a vaincu le RAID BOSS ! JACKPOT DE ${finalReward} !`);
                 } else if (target.tier.id === 'troll' && hits >= 500) {
                     log(`🤡 ${username} a gaspillé ${hits} coups sur un piège ! (Gain: ${finalReward})`);
@@ -572,7 +595,7 @@
                 setTimeout(() => target.hpElement.style.color = 'white', 300);
                 
                 const percentLeft = Math.round((target.hp / target.maxHp) * 100);
-                if (target.tier.id === 'boss' || target.tier.id === 'robust') {
+                if (target.tier.id === 'boss' || target.tier.id === 'robust' || target.tier.id === 'gift') {
                      log(`🛡️ ${username} tape (-${hits}) sur ${target.tier.label}. PV restants: ${percentLeft}%`);
                 } else {
                      log(`🔨 ${username} frappe (-${hits}) sur ${target.tier.label}.`);
@@ -602,6 +625,7 @@
             let icon = '💰';
             if (amount >= 500) icon = '💎';
             if (amount >= 2000) icon = '👑';
+            if (amount >= 10000) icon = '🎁';
             if (amount <= 10) icon = '🤡';
             
             showToast(`${icon} +${amount} pour ${username} !`);
@@ -630,6 +654,7 @@
                 const tr = document.createElement('tr');
                 let amountClass = "text-pink-400";
                 if (item.amount >= 500) amountClass = "text-yellow-400";
+                if (item.amount >= 5000) amountClass = "text-green-400 font-black";
                 
                 tr.innerHTML = `
                     <td class="font-bold text-gray-200 pl-2">${item.user}</td>
