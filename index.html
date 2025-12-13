@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu du Sapin - Édition Raid Boss</title>
-    <!-- Chargement de Tailwind CSS -->
+    <title>Jeu du Sapin - Édition Raid Boss (Save System)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Police Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -199,7 +197,7 @@
             padding: 10px; border-radius: 12px;
             display: none; flex-direction: column; gap: 8px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 100;
-            min-width: 220px;
+            min-width: 250px;
         }
         .menu-overlay.active { display: flex; }
         .menu-item {
@@ -221,8 +219,6 @@
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
-
-    <!-- ================== PANNEAUX DÉPLAÇABLES ================== -->
 
     <div id="rewardsContainer" class="draggable-panel" style="top: 40px; left: 40px;">
         <div class="panel-header">
@@ -269,25 +265,33 @@
         </div>
     </div>
 
-    <!-- MENU CONFIGURATION AVEC NOUVEAU BOUTON RESET -->
     <div class="menu-overlay" id="menuOverlay">
         <div class="menu-item" onclick="togglePanel('rewardsContainer')">🎁 Tableau des gains</div>
         <div class="menu-item" onclick="togglePanel('lastAttackerPanel')">⚔️ Dernier Attaquant</div>
         <div class="menu-item" onclick="togglePanel('lastRewardPanel')">🏆 Dernier Gain</div>
+        
         <div class="border-t border-gray-600 my-1"></div>
+        
+        <div class="menu-item" id="btnAutoSave" onclick="toggleAutoSave()">
+            💾 Auto-Save : <span class="text-green-400 font-bold">ON ✅</span>
+        </div>
+        <div class="menu-item hover:bg-blue-600/30 text-blue-300" onclick="manualSave()">
+            💾 Sauvegarder Manuellement
+        </div>
+
+        <div class="border-t border-gray-600 my-1"></div>
+        
         <div class="menu-item text-red-400 hover:text-red-300" onclick="resetRewardsData()">🗑️ Vider seulement les gains</div>
         <div class="menu-item text-red-500 font-bold hover:text-red-400 border border-red-500/30 rounded" onclick="fullReset()">🔴 Réinitialiser le Jeu</div>
     </div>
     
     <button class="menu-btn" onclick="document.getElementById('menuOverlay').classList.toggle('active')">
-        📋 Configurer / Reset
+        📋 Configurer / Save
     </button>
 
     <div id="toast" class="toast">Notification</div>
 
 
-    <!-- ================== JEU PRINCIPAL ================== -->
-    
     <div class="relative z-0 bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-2xl p-6 shadow-2xl max-w-xl w-full text-center">
         
         <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-200 mb-1 drop-shadow-sm uppercase tracking-wider">Frappe le Sapin</h1>
@@ -306,7 +310,6 @@
             <div id="b7-container" class="bauble-container" style="top: 325px; left: 140px;"></div>
             <div id="b8-container" class="bauble-container" style="top: 315px; left: 280px;"></div>
             
-            <!-- CADEAU AU PIED DU SAPIN -->
             <div id="gift-container" class="bauble-container" style="top: 450px; left: 175px; z-index: 20;"></div>
         </div>
 
@@ -352,7 +355,6 @@
         </div>
     </div>
 
-    <!-- ================== JAVASCRIPT LOGIC ================== -->
     <script>
         // --- SONS ---
         const AUDIO_HIT_SRC = 'https://files.catbox.moe/fp8aq6.mp3';
@@ -435,6 +437,7 @@
         let currentHits = 1;
         let baubles = []; 
         let rewardsQueue = []; 
+        let isAutoSave = true; // État de la sauvegarde auto
         
         document.addEventListener('DOMContentLoaded', () => {
             initTree();
@@ -596,9 +599,9 @@
                 
                 const percentLeft = Math.round((target.hp / target.maxHp) * 100);
                 if (target.tier.id === 'boss' || target.tier.id === 'robust' || target.tier.id === 'gift') {
-                     log(`🛡️ ${username} tape (-${hits}) sur ${target.tier.label}. PV restants: ${percentLeft}%`);
+                      log(`🛡️ ${username} tape (-${hits}) sur ${target.tier.label}. PV restants: ${percentLeft}%`);
                 } else {
-                     log(`🔨 ${username} frappe (-${hits}) sur ${target.tier.label}.`);
+                      log(`🔨 ${username} frappe (-${hits}) sur ${target.tier.label}.`);
                 }
             }
         }
@@ -618,7 +621,7 @@
                 date: new Date()
             };
             rewardsQueue.push(reward);
-            saveData();
+            saveData(); // Sauvegarde (auto-save est géré dedans)
             renderRewards();
             updateLastReward(username, amount);
             
@@ -669,24 +672,23 @@
 
         function payReward(id) {
             rewardsQueue = rewardsQueue.filter(r => r.id !== id);
-            saveData();
+            saveData(); // Sauvegarde (auto-save est géré dedans)
             renderRewards();
         }
 
         function resetRewardsData() {
             if(confirm("Confirmer la suppression de tous les gains ?")) {
                 rewardsQueue = [];
-                saveData();
+                saveData(true); // Force la sauvegarde
                 renderRewards();
             }
         }
 
-        // --- NOUVELLE FONCTION RESET COMPLET ---
         function fullReset() {
             if(confirm("⚠️ ATTENTION : Cela va effacer TOUS les gains, l'historique et régénérer le sapin. Continuer ?")) {
                 // Clear Rewards
                 rewardsQueue = [];
-                saveData();
+                saveData(true); // Force la sauvegarde à vide
                 renderRewards();
                 
                 // Clear Logs
@@ -703,11 +705,59 @@
                 initTree();
                 
                 showToast("♻️ Jeu entièrement réinitialisé !");
-                
-                // Fermer le menu
                 document.getElementById('menuOverlay').classList.remove('active');
             }
         }
+
+        // --- GESTION DES SAUVEGARDES ---
+
+        function toggleAutoSave() {
+            isAutoSave = !isAutoSave;
+            localStorage.setItem('sapin_autosave_pref', isAutoSave);
+            updateAutoSaveUI();
+            
+            const msg = isAutoSave ? "ACTIVÉE ✅" : "DÉSACTIVÉE ❌";
+            showToast(`Sauvegarde Auto : ${msg}`);
+        }
+
+        function updateAutoSaveUI() {
+            const btn = document.getElementById('btnAutoSave');
+            if(isAutoSave) {
+                btn.innerHTML = '💾 Auto-Save : <span class="text-green-400 font-bold">ON ✅</span>';
+            } else {
+                btn.innerHTML = '💾 Auto-Save : <span class="text-red-400 font-bold">OFF ❌</span>';
+            }
+        }
+
+        function manualSave() {
+            saveData(true); // Force true
+            showToast("✅ Données sauvegardées manuellement !");
+        }
+
+        function saveData(force = false) {
+            // Si pas forcé et auto-save désactivé, on arrête
+            if (!force && !isAutoSave) return;
+
+            localStorage.setItem('sapin_raid_rewards', JSON.stringify(rewardsQueue));
+        }
+
+        function loadData() {
+            // Charger les gains
+            const data = localStorage.getItem('sapin_raid_rewards');
+            if (data) {
+                rewardsQueue = JSON.parse(data);
+                renderRewards();
+            }
+
+            // Charger la préférence auto-save
+            const pref = localStorage.getItem('sapin_autosave_pref');
+            if (pref !== null) {
+                isAutoSave = (pref === 'true');
+            }
+            updateAutoSaveUI();
+        }
+
+        // --- UTILITAIRES ---
 
         function log(msg) {
             const box = document.getElementById('gameLog');
@@ -729,17 +779,6 @@
             const p = document.getElementById(id);
             if (p.style.display === 'none') p.style.display = 'block';
             else p.style.display = 'none';
-        }
-
-        function saveData() {
-            localStorage.setItem('sapin_raid_rewards', JSON.stringify(rewardsQueue));
-        }
-        function loadData() {
-            const data = localStorage.getItem('sapin_raid_rewards');
-            if (data) {
-                rewardsQueue = JSON.parse(data);
-                renderRewards();
-            }
         }
 
         function setupDraggable(elementId) {
