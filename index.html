@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu du Sapin - Édition Raid Boss (Save System)</title>
+    <title>Jeu du Sapin - Édition Raid Boss (Save System Avancé)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,19 +13,18 @@
         /* --- CONFIGURATION GLOBALE --- */
         body {
             font-family: 'Inter', sans-serif;
-            overflow: hidden; /* Empêche le scroll global */
+            overflow: hidden;
             background: url('https://i.pinimg.com/originals/f4/27/f8/f427f827d3a8b29569e68b40ccc2b6a8.gif') no-repeat center center fixed;
             background-size: cover;
             color: #f3f4f6;
             user-select: none;
         }
 
-        /* Ajout d'un overlay sombre léger */
         body::before {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.5); /* Un peu plus sombre pour lisibilité */
+            background: rgba(0, 0, 0, 0.5);
             z-index: -1;
         }
         
@@ -66,7 +65,6 @@
             transition: all 0.4s ease-out;
         }
         
-        /* Animation de frappe */
         @keyframes shake {
             0%, 100% { transform: translate(0, 0) rotate(0deg); }
             25% { transform: translate(-3px, 1px) rotate(-5deg); }
@@ -197,7 +195,7 @@
             padding: 10px; border-radius: 12px;
             display: none; flex-direction: column; gap: 8px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 100;
-            min-width: 250px;
+            min-width: 280px;
         }
         .menu-overlay.active { display: flex; }
         .menu-item {
@@ -216,6 +214,82 @@
             z-index: 2000; font-weight: bold; border-left: 4px solid #a7f3d0;
         }
         .toast.show { transform: translateX(0); }
+
+        /* --- MODAL D'IMPORT/EXPORT --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #334155;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #fbbf24;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body { padding: 20px; }
+        .modal-close {
+            background: none; border: none; color: #9ca3af;
+            cursor: pointer; font-size: 1.5rem; line-height: 1;
+        }
+        .textarea-json {
+            width: 100%; height: 200px;
+            background: #0f172a; color: #e2e8f0;
+            border: 1px solid #475569; border-radius: 8px;
+            padding: 12px; font-family: monospace;
+            font-size: 0.85rem; resize: none;
+            margin: 10px 0;
+        }
+        .file-input-container {
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            margin: 10px 0;
+        }
+        .file-input-container:hover {
+            border-color: #fbbf24;
+        }
+        .btn-group {
+            display: flex; gap: 10px; margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px; border-radius: 8px;
+            font-weight: bold; cursor: pointer;
+            flex: 1; text-align: center;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-secondary {
+            background: #475569; color: white;
+            border: none;
+        }
+        .btn-secondary:hover { background: #64748b; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -265,6 +339,53 @@
         </div>
     </div>
 
+    <!-- Modal Import/Export -->
+    <div class="modal-overlay" id="importExportModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span>💾 Import / Export des Données</span>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="tabs mb-4">
+                    <button id="tabExport" class="tab-btn active" onclick="switchTab('export')">Exporter</button>
+                    <button id="tabImport" class="tab-btn" onclick="switchTab('import')">Importer</button>
+                </div>
+                
+                <div id="exportTab" class="tab-content">
+                    <p class="text-gray-300 mb-3">Copiez ce JSON pour sauvegarder l'état complet du jeu :</p>
+                    <textarea id="exportJson" class="textarea-json" readonly></textarea>
+                    <button onclick="copyToClipboard()" class="btn btn-primary">📋 Copier le JSON</button>
+                    <button onclick="exportToFile()" class="btn btn-primary mt-2">💾 Télécharger en fichier</button>
+                </div>
+                
+                <div id="importTab" class="tab-content" style="display: none;">
+                    <p class="text-gray-300 mb-3">Importez un fichier JSON ou collez le contenu :</p>
+                    
+                    <div class="file-input-container" onclick="document.getElementById('fileInput').click()">
+                        <div class="text-4xl mb-2">📁</div>
+                        <div class="text-gray-300 font-bold">Cliquez pour sélectionner un fichier</div>
+                        <div class="text-gray-500 text-sm mt-1">Format JSON uniquement</div>
+                        <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileSelect(event)">
+                    </div>
+                    
+                    <div class="text-center text-gray-400 my-2">OU</div>
+                    
+                    <textarea id="importJson" class="textarea-json" placeholder="Collez votre JSON ici..."></textarea>
+                    
+                    <div class="btn-group">
+                        <button onclick="importFromJson()" class="btn btn-primary">📥 Importer</button>
+                        <button onclick="closeModal()" class="btn btn-secondary">Annuler</button>
+                    </div>
+                </div>
+                
+                <div class="text-xs text-gray-500 mt-4">
+                    <strong>Note :</strong> Les données sauvegardées incluent : les gains en attente, l'état des boules (PV), le dernier attaquant, et le dernier gain.
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="menu-overlay" id="menuOverlay">
         <div class="menu-item" onclick="togglePanel('rewardsContainer')">🎁 Tableau des gains</div>
         <div class="menu-item" onclick="togglePanel('lastAttackerPanel')">⚔️ Dernier Attaquant</div>
@@ -278,6 +399,10 @@
         <div class="menu-item hover:bg-blue-600/30 text-blue-300" onclick="manualSave()">
             💾 Sauvegarder Manuellement
         </div>
+        
+        <div class="menu-item hover:bg-purple-600/30 text-purple-300" onclick="showImportExportModal()">
+            📁 Import / Export Fichier
+        </div>
 
         <div class="border-t border-gray-600 my-1"></div>
         
@@ -290,7 +415,6 @@
     </button>
 
     <div id="toast" class="toast">Notification</div>
-
 
     <div class="relative z-0 bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-2xl p-6 shadow-2xl max-w-xl w-full text-center">
         
@@ -437,7 +561,9 @@
         let currentHits = 1;
         let baubles = []; 
         let rewardsQueue = []; 
-        let isAutoSave = true; // État de la sauvegarde auto
+        let isAutoSave = true;
+        let lastAttacker = { name: "-", time: "En attente..." };
+        let lastReward = { name: "-", amount: 0, time: "En attente..." };
         
         document.addEventListener('DOMContentLoaded', () => {
             initTree();
@@ -474,7 +600,7 @@
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        function initTree() {
+        function initTree(baubleData = null) {
             baubles = [];
             const containers = document.querySelectorAll('.bauble-container');
             
@@ -482,16 +608,21 @@
                 container.innerHTML = '';
                 
                 let tier;
+                // Récupérer les données sauvegardées si elles existent
+                let savedData = baubleData ? baubleData.find(b => b.index === index) : null;
+                
                 // Logique spéciale pour le cadeau
                 if (container.id === 'gift-container') {
                     tier = TIERS.find(t => t.id === 'gift');
                 } else {
-                    tier = getRandomTier();
-                    // Sécurité : éviter que le random ne prenne le cadeau (poids 0 devrait suffire, mais au cas où)
-                    if(tier.id === 'gift') tier = TIERS[2];
+                    tier = savedData ? TIERS.find(t => t.id === savedData.tierId) : getRandomTier();
+                    if (!tier || tier.id === 'gift') tier = TIERS[2];
                 }
                 
-                const maxHp = getRandomInt(tier.hpRange[0], tier.hpRange[1]);
+                // Utiliser les données sauvegardées ou générer aléatoirement
+                const maxHp = savedData ? savedData.maxHp : getRandomInt(tier.hpRange[0], tier.hpRange[1]);
+                const currentHp = savedData ? savedData.hp : maxHp;
+                const isBroken = savedData ? savedData.isBroken : false;
                 const reward = tier.fixedReward ? tier.fixedReward : Math.ceil(maxHp * 0.25);
                 
                 const baubleEl = document.createElement('div');
@@ -501,11 +632,15 @@
                 baubleEl.style.height = `${tier.size}px`;
                 baubleEl.style.backgroundImage = `url('${tier.img}')`;
                 
+                if (isBroken) {
+                    baubleEl.classList.add('broken');
+                }
+                
                 baubleEl.onclick = () => processAttack("Streamer", 1, index);
 
                 const hpEl = document.createElement('div');
                 hpEl.className = 'hp-indicator';
-                hpEl.innerText = `${maxHp}`;
+                hpEl.innerText = `${currentHp}/${maxHp}`;
 
                 container.appendChild(baubleEl);
                 container.appendChild(hpEl);
@@ -515,10 +650,11 @@
                     tier: tier,
                     element: baubleEl,
                     hpElement: hpEl,
-                    hp: maxHp,
+                    hp: currentHp,
                     maxHp: maxHp,
                     reward: reward,
-                    isBroken: false
+                    isBroken: isBroken,
+                    tierId: tier.id
                 });
             });
             
@@ -527,7 +663,7 @@
 
         function resetTree() {
             document.querySelectorAll('.bauble').forEach(b => b.classList.add('broken'));
-            setTimeout(initTree, 500);
+            setTimeout(() => initTree(), 500);
         }
 
         function selectMode(hits) {
@@ -604,9 +740,18 @@
                       log(`🔨 ${username} frappe (-${hits}) sur ${target.tier.label}.`);
                 }
             }
+            
+            // Sauvegarde auto de l'état
+            if (isAutoSave) {
+                saveData();
+            }
         }
 
         function updateLastAttacker(name) {
+            lastAttacker = { 
+                name: name, 
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
+            };
             document.getElementById('lastAttackerName').innerText = name;
             document.getElementById('lastAttackerTime').innerText = "À l'instant";
         }
@@ -621,7 +766,14 @@
                 date: new Date()
             };
             rewardsQueue.push(reward);
-            saveData(); // Sauvegarde (auto-save est géré dedans)
+            
+            lastReward = {
+                name: username,
+                amount: amount,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            };
+            
+            saveData();
             renderRewards();
             updateLastReward(username, amount);
             
@@ -672,36 +824,32 @@
 
         function payReward(id) {
             rewardsQueue = rewardsQueue.filter(r => r.id !== id);
-            saveData(); // Sauvegarde (auto-save est géré dedans)
+            saveData();
             renderRewards();
         }
 
         function resetRewardsData() {
             if(confirm("Confirmer la suppression de tous les gains ?")) {
                 rewardsQueue = [];
-                saveData(true); // Force la sauvegarde
+                saveData(true);
                 renderRewards();
             }
         }
 
         function fullReset() {
             if(confirm("⚠️ ATTENTION : Cela va effacer TOUS les gains, l'historique et régénérer le sapin. Continuer ?")) {
-                // Clear Rewards
                 rewardsQueue = [];
-                saveData(true); // Force la sauvegarde à vide
+                saveData(true);
                 renderRewards();
                 
-                // Clear Logs
                 document.getElementById('gameLog').innerHTML = '<div class="text-yellow-400">✨ Système réinitialisé. Prêt !</div>';
                 
-                // Clear Panels
-                document.getElementById('lastAttackerName').innerText = "-";
-                document.getElementById('lastAttackerTime').innerText = "En attente...";
-                document.getElementById('lastWinnerName').innerText = "-";
-                document.getElementById('lastWinnerAmount').innerText = "0";
-                document.getElementById('lastWinnerTime').innerText = "En attente...";
+                lastAttacker = { name: "-", time: "En attente..." };
+                lastReward = { name: "-", amount: 0, time: "En attente..." };
                 
-                // Reset Tree
+                updateLastAttackerUI();
+                updateLastRewardUI();
+                
                 initTree();
                 
                 showToast("♻️ Jeu entièrement réinitialisé !");
@@ -709,7 +857,7 @@
             }
         }
 
-        // --- GESTION DES SAUVEGARDES ---
+        // --- GESTION DES SAUVEGARDES AVANCÉES ---
 
         function toggleAutoSave() {
             isAutoSave = !isAutoSave;
@@ -730,23 +878,77 @@
         }
 
         function manualSave() {
-            saveData(true); // Force true
+            saveData(true);
             showToast("✅ Données sauvegardées manuellement !");
         }
 
         function saveData(force = false) {
-            // Si pas forcé et auto-save désactivé, on arrête
             if (!force && !isAutoSave) return;
 
-            localStorage.setItem('sapin_raid_rewards', JSON.stringify(rewardsQueue));
+            // Préparer les données des boules
+            const baubleStates = baubles.map(b => ({
+                index: b.index,
+                tierId: b.tier.id,
+                hp: b.hp,
+                maxHp: b.maxHp,
+                isBroken: b.isBroken,
+                reward: b.reward
+            }));
+
+            const saveObject = {
+                version: '2.0',
+                saveDate: new Date().toISOString(),
+                rewardsQueue: rewardsQueue,
+                baubleStates: baubleStates,
+                lastAttacker: lastAttacker,
+                lastReward: lastReward,
+                currentHits: currentHits
+            };
+
+            localStorage.setItem('sapin_raid_full_save', JSON.stringify(saveObject));
         }
 
         function loadData() {
-            // Charger les gains
-            const data = localStorage.getItem('sapin_raid_rewards');
+            // Charger la sauvegarde complète
+            const data = localStorage.getItem('sapin_raid_full_save');
             if (data) {
-                rewardsQueue = JSON.parse(data);
-                renderRewards();
+                try {
+                    const saveObject = JSON.parse(data);
+                    
+                    // Charger les gains
+                    if (saveObject.rewardsQueue) {
+                        rewardsQueue = saveObject.rewardsQueue;
+                        renderRewards();
+                    }
+                    
+                    // Charger l'état des boules
+                    if (saveObject.baubleStates) {
+                        initTree(saveObject.baubleStates);
+                    }
+                    
+                    // Charger les derniers événements
+                    if (saveObject.lastAttacker) {
+                        lastAttacker = saveObject.lastAttacker;
+                        updateLastAttackerUI();
+                    }
+                    
+                    if (saveObject.lastReward) {
+                        lastReward = saveObject.lastReward;
+                        updateLastRewardUI();
+                    }
+                    
+                    if (saveObject.currentHits) {
+                        currentHits = saveObject.currentHits;
+                        selectMode(currentHits);
+                    }
+                    
+                    log("💾 Sauvegarde chargée avec succès !");
+                } catch (e) {
+                    console.error("Erreur de chargement de la sauvegarde:", e);
+                    initTree();
+                }
+            } else {
+                initTree();
             }
 
             // Charger la préférence auto-save
@@ -755,6 +957,152 @@
                 isAutoSave = (pref === 'true');
             }
             updateAutoSaveUI();
+        }
+
+        function updateLastAttackerUI() {
+            document.getElementById('lastAttackerName').innerText = lastAttacker.name;
+            document.getElementById('lastAttackerTime').innerText = lastAttacker.time;
+        }
+
+        function updateLastRewardUI() {
+            document.getElementById('lastWinnerName').innerText = lastReward.name;
+            document.getElementById('lastWinnerAmount').innerText = lastReward.amount;
+            document.getElementById('lastWinnerTime').innerText = lastReward.time;
+        }
+
+        // --- IMPORT/EXPORT FICHIER ---
+
+        function showImportExportModal() {
+            const modal = document.getElementById('importExportModal');
+            modal.classList.add('active');
+            switchTab('export');
+            updateExportJson();
+            document.getElementById('menuOverlay').classList.remove('active');
+        }
+
+        function closeModal() {
+            document.getElementById('importExportModal').classList.remove('active');
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tab + 'Tab').style.display = 'block';
+            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+            
+            if (tab === 'export') {
+                updateExportJson();
+            }
+        }
+
+        function updateExportJson() {
+            const baubleStates = baubles.map(b => ({
+                index: b.index,
+                tierId: b.tier.id,
+                hp: b.hp,
+                maxHp: b.maxHp,
+                isBroken: b.isBroken,
+                reward: b.reward
+            }));
+
+            const exportObject = {
+                version: '2.0',
+                exportDate: new Date().toISOString(),
+                rewardsQueue: rewardsQueue,
+                baubleStates: baubleStates,
+                lastAttacker: lastAttacker,
+                lastReward: lastReward,
+                currentHits: currentHits
+            };
+
+            document.getElementById('exportJson').value = JSON.stringify(exportObject, null, 2);
+        }
+
+        function copyToClipboard() {
+            const textarea = document.getElementById('exportJson');
+            textarea.select();
+            document.execCommand('copy');
+            showToast("✅ JSON copié dans le presse-papier !");
+        }
+
+        function exportToFile() {
+            const data = document.getElementById('exportJson').value;
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sapin_raid_save_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("💾 Fichier téléchargé !");
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('importJson').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        function importFromJson() {
+            const jsonString = document.getElementById('importJson').value.trim();
+            if (!jsonString) {
+                showToast("❌ Veuillez entrer du JSON valide");
+                return;
+            }
+            
+            try {
+                const importedData = JSON.parse(jsonString);
+                
+                if (!importedData.version) {
+                    showToast("❌ Format de fichier invalide");
+                    return;
+                }
+                
+                if (confirm("⚠️ Ceci écrasera toutes les données actuelles. Continuer ?")) {
+                    // Appliquer les données importées
+                    if (importedData.rewardsQueue) {
+                        rewardsQueue = importedData.rewardsQueue;
+                    }
+                    
+                    if (importedData.lastAttacker) {
+                        lastAttacker = importedData.lastAttacker;
+                    }
+                    
+                    if (importedData.lastReward) {
+                        lastReward = importedData.lastReward;
+                    }
+                    
+                    if (importedData.currentHits) {
+                        currentHits = importedData.currentHits;
+                    }
+                    
+                    // Reconstruire le sapin avec les états sauvegardés
+                    if (importedData.baubleStates) {
+                        initTree(importedData.baubleStates);
+                    }
+                    
+                    // Mettre à jour l'interface
+                    renderRewards();
+                    updateLastAttackerUI();
+                    updateLastRewardUI();
+                    selectMode(currentHits);
+                    saveData(true);
+                    
+                    closeModal();
+                    showToast("✅ Données importées avec succès !");
+                }
+            } catch (e) {
+                showToast("❌ JSON invalide : " + e.message);
+                console.error(e);
+            }
         }
 
         // --- UTILITAIRES ---
